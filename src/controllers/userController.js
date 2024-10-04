@@ -1,6 +1,7 @@
 const userSchema = require('../models/userModel');
 const bcrypt = require('bcrypt');
 const nodemailer = require('nodemailer');
+const jwt = require('jsonwebtoken');
 var userDetails = {};
 var otpDetails = {};
 
@@ -33,9 +34,6 @@ const signUp = async(req,res) => {
     } catch(err) {
        return res.status(400).json(err);
     }
-}
-
-const login = (req,res) => {
 }
 
 const sendOtp = async (req,res) => {  
@@ -110,6 +108,32 @@ function genarateOtp (number) {
      otpGenerated += Math.floor(Math.random() * 10).toString()
     }
     return otpGenerated;
+}
+
+const login = async(req,res) => {
+    const {email,password} = req.body;
+    try{
+        let user = await userSchema.findOne({email});
+        if(user){
+          let correctPassword = await bcrypt.compare(password,user.password);
+          if(correctPassword){
+            let userData = {
+                userId:user._id,
+                username:user.username
+            }
+            const token = await jwt.sign(
+                {userData},
+                process.env.SECRET_KEY,
+                {expiresIn:'1h'}
+            )
+            return res.status(200).json({code:200,message:'Successfully logged in',token:token})
+          } else {
+            return res.status(400).json({code:400,message:"Incorrect password"}) 
+          }
+        } else {
+            return res.status(400).json({code:400,message:"Email id doesn't exists"})
+        }
+    } catch(err){}
 }
 
 module.exports = {
